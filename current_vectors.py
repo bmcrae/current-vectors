@@ -1,6 +1,4 @@
-#strip out contract, expand, range, base resist?
 #add option to do flow in OR flow out
-#put settings in options
 
 
 import sys, time, string, os, math
@@ -594,7 +592,7 @@ def elapsed_time(logFilePath, start_time):
 
     
 @print_timing        
-def map_current_vectors(configFile, voltMapFile, arrowOptions, resistInput, projectionFile, outputDir, deleteTempFiles,logFilePath):
+def map_current_vectors(configFile, voltMapFile, arrowOptions, resistInput, projectionFile, outputDir, logFilePath):
 #fixme: only works for advanced mode.  could iterate thru all 'basemap_voltmap_x_y.asc' for pairwise, basemap_voltmap_x.asc' for all to one, etc.
 
 # better soln: input is voltage map AND ini file? 
@@ -602,12 +600,6 @@ def map_current_vectors(configFile, voltMapFile, arrowOptions, resistInput, proj
   # -if only .ini. run through all potential voltmaps (DO LATER)
 # if not ascii, use arc to convert
     try:
-        writeTotalCurrent = arrowOptions[writeTotalCurrent] 
-        writeResultant = arrowOptions[writeResultant]
-        writeAllDirections = arrowOptions[writeAllDirections]
-        writeEdgeMaps = arrowOptions[writeEdgeMaps]
-        writeArcVectors = arrowOptions[writeArcVectors]
-
         state = {}
         cs_options = readConfigFile(configFile)
         csOutDir, baseOutputFN = os.path.split(cs_options['output_file'])
@@ -673,7 +665,7 @@ def map_current_vectors(configFile, voltMapFile, arrowOptions, resistInput, proj
         dir, baseResistFN = os.path.split(resistInput) 
         baseResistFile, ext = os.path.splitext(baseResistFN)
         
-        if writeTotalCurrent:
+        if arrowOptions['writeTotalCurrent']:
             iTot = iN + iS + iE + iW + iNE + iSE + iSW + iNW
             iTot = where(voltMap == -9999, -9999, iTot)
             angle = where(iTot == 0, -9999, angle)
@@ -681,12 +673,11 @@ def map_current_vectors(configFile, voltMapFile, arrowOptions, resistInput, proj
         
         writer(baseOutputFile+'_'+baseResistFile+'_angle.asc', angle, state, False, projectionFile)
         
-        if writeResultant:
-
+        if arrowOptions['writeResultant']:
             writer(baseOutputFile+'_'+baseResistFile+'_magnitude.asc', mag, state, False, projectionFile)
 
 
-        if writeAllDirections:
+        if arrowOptions['writeAllDirections']:
             writer(baseOutputFile+'_iN.asc', iN, state, False, projectionFile)
             writer(baseOutputFile+'_iS.asc', iS, state, False, projectionFile)
             writer(baseOutputFile+'_iE.asc', iE, state, False, projectionFile)
@@ -698,7 +689,7 @@ def map_current_vectors(configFile, voltMapFile, arrowOptions, resistInput, proj
             writer(baseOutputFile+'_iNetN.asc', iNetN, state, False, projectionFile)
             writer(baseOutputFile+'_iNetE.asc', iNetE, state, False, projectionFile)
 
-        if writeArcVectors:
+        if arrowOptions['writeArcVectors']:
             # raster to points mag (and grossmag if writetotalcurrent true_)
             # convert angle to degrees
             # add field
@@ -710,7 +701,7 @@ def map_current_vectors(configFile, voltMapFile, arrowOptions, resistInput, proj
                 
                 field = "VALUE"
                 # Execute RasterToPoint
-                if writeTotalCurrent:
+                if arrowOptions['writeTotalCurrent']:
                     inRaster = baseOutputFile+'_grossMagnitude.asc'
                 else:
                     inRaster = baseOutputFile+'_magnitude.asc'
@@ -724,39 +715,27 @@ def map_current_vectors(configFile, voltMapFile, arrowOptions, resistInput, proj
                 arcpy.RasterToPoint_conversion(inRaster, outPoint, field)
 
                 angleRaster = baseOutputFile+'_angle.asc'
-                if writeAllDirections:
+                if arrowOptions['writeAllDirections']:
                     inRasterList = [[angleRaster, "radians"],[baseOutputFile+'_iN.asc',"i_North"],[baseOutputFile+'_iS.asc',"i_South"],[baseOutputFile+'_iE.asc',"i_East"],[baseOutputFile+'_iW.asc',"i_West"],[baseOutputFile+'_iNE.asc',"i_NE"],[baseOutputFile+'_iSE.asc',"i_SE"],[baseOutputFile+'_iSW.asc',"i_SW"],[baseOutputFile+'_iNW.asc',"i_NW"]]
                 else:
                     inRasterList = [[angleRaster, "radians"]]
                 arcpy.sa.ExtractMultiValuesToPoints(outPoint, inRasterList, "NONE") #faster, allows multi rasters, name of field
                 arcpy.AddField_management(outPoint, "Degrees", "DOUBLE")
                 arcpy.AddField_management(outPoint, "DegreesGeo", "DOUBLE")
-                if writeResultant:
+                if arrowOptions['writeResultant']:
                     arcpy.AddField_management(outPoint, "Mag", "DOUBLE")
-                if writeTotalCurrent:
+                if arrowOptions['writeTotalCurrent']:
                     arcpy.AddField_management(outPoint, "GrossMag", "DOUBLE")
-                # if 'contract' in baseOutputFile:
-                    # arcpy.AddField_management(outPoint, "contMag", "DOUBLE")
-                # if 'expand' in baseOutputFile:
-                    # arcpy.AddField_management(outPoint, "expMag", "DOUBLE")
                     
                 rows = arcpy.UpdateCursor(outPoint)
                 for row in rows:
                     radians = row.getValue("radians")
                     row.setValue("Degrees", radians*180/pi)
                     row.setValue("DegreesGeo", radians*180/pi-90)
-                    if writeTotalCurrent:
+                    if arrowOptions['writeTotalCurrent']:
                         row.setValue("GrossMag", row.getValue("GRID_CODE"))
-                    if writeResultant:
+                    if arrowOptions['writeResultant']:
                         row.setValue("Mag", row.getValue("GRID_CODE"))
-                    # if 'contract' in baseOutputFile:
-                        # # rangeMap =  row.getValue("rangeMap")
-                        # # if rangeMap == 2:
-                            # # row.setValue("contMag",row.getValue("GRID_CODE"))
-                    # if 'expand' in baseOutputFile:
-                        # rangeMap =  row.getValue("rangeMap")
-                        # if rangeMap == 3:
-                            # row.setValue("expMag",row.getValue("GRID_CODE"))
                                                 
                         
                     rows.updateRow(row)

@@ -17,23 +17,25 @@ from current_vectors import *
 
 version = '2013_0408'
 
-options = {}
+logFilePath = None
+
+
 try:
+    arrowOptions = {}
     ####### USER SETTINGS ##############################
     circuitscapeDir = "c:\\temp" # Directory where Circuitscape directory is placed
-    arrowOptions[writeTotalCurrent] = False # Write total current leaving each pixel
-    arrowOptions[writeResultant] = True # Write vector magnitudes (will be less than total current)
-    arrowOptions[writeAllDirections] = False # Write current leaving pixels from N, NE, E, etc..
-    arrowOptions[writeEdgeMaps] = False # in Progress
-    arrowOptions[deleteTempFiles] = True # Delete everything except standard current map (saved for debug)
-    arrowOptions[writeArcVectors] = False
+    arrowOptions['writeTotalCurrent'] = False # Write total current leaving each pixel
+    arrowOptions['writeResultant'] = True # Write vector magnitudes (will be less than total current)
+    arrowOptions['writeAllDirections'] = False # Write current leaving pixels from N, NE, E, etc..
+    arrowOptions['deleteTempFiles'] = True # Delete everything except standard current map (saved for debug)
+    arrowOptions['writeArcVectors'] = False
     raiseResistPower = 1
     
     if len(sys.argv) < 2: #Manual inputs
         resistInput = 'c:\\dropbox\\working\\arrows\\nocost.asc' # raw resistance map (no zeros allowed, NoData = -9999)
         raiseResistPower = 1
         # resistInput = 'c:\\arrows\\r3.asc' # raw resistance map (no zeros allowed, NoData = -9999)
-        rangeDir = 'C:\\dropbox\\working\\a1332' # All range maps in this directory, NoData = -9999
+        rangeDir = 'C:\\dropbox\\working\\arrows\\a1332' # All range maps in this directory, NoData = -9999
         # rangeDir = 'c:\\arrows\\testranges' # All range maps in this directory, NoData = -9999
         scratchDir = 'c:\\dropbox\\working\\arrows\\scratch'
         outDir = 'c:\\temp2'
@@ -73,6 +75,7 @@ try:
         os.mkdir(logDir)
    
     logFilePath = create_log_file(logDir, settings)    
+    
     lprint(logFilePath, 'Version = ' + version + '\n')
     
     for fileName in fileList:   
@@ -187,18 +190,18 @@ try:
             csOutDir, baseOutputFN = os.path.split(cs_options['output_file'])
             baseFile, ext = os.path.splitext(baseOutputFN)
             expandVoltMapFile = os.path.join(csOutDir, baseFile + '_voltmap.asc')        
-            map_current_vectors(expandConfigFile, expandVoltMapFile, arrowOptions, rangeRaster, resistInput, projectionFile, outDir, deleteTempFiles, logFilePath) 
+            map_current_vectors(expandConfigFile, expandVoltMapFile, arrowOptions, resistInput, projectionFile, outDir, logFilePath) 
         if failFlag2 == False and solverFailFlag2 == False:
             cs_options = readConfigFile(contractConfigFile)
             csOutDir, baseOutputFN = os.path.split(cs_options['output_file'])
             baseFile, ext = os.path.splitext(baseOutputFN)
             contractVoltMapFile = os.path.join(csOutDir, baseFile + '_voltmap.asc')        
-            map_current_vectors(contractConfigFile, contractVoltMapFile, arrowOptions, rangeRaster, resistInput, projectionFile, outDir, deleteTempFiles, logFilePath)
+            map_current_vectors(contractConfigFile, contractVoltMapFile, arrowOptions, resistInput, projectionFile, outDir, logFilePath)
         lprint (logFilePath, '\n-------------------------------------------------------')    
         lprint (logFilePath, 'Done with all operations for ' + fileName +'\n')
         startTime = elapsed_time(logFilePath, startTime)
         # Clean up    
-        if deleteTempFiles == True:
+        if arrowOptions['deleteTempFiles'] == True:
             try:
                 os.remove(contractResistFile) 
                 os.remove(expandResistFile)
