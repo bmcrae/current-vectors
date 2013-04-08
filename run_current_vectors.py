@@ -9,7 +9,7 @@ logFilePath = None
 try:
     # settings are for this script, as opposed to options which are for vector script.
     settings = {}
-    arrowOptions = {}
+    arrowOptions = {} 
     
     ####### USER SETTINGS ##############################
     if len(sys.argv) < 2: #Manual inputs
