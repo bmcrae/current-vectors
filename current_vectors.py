@@ -763,3 +763,59 @@ def map_current_vectors(arrowOptions):
             
     except:
         exit_with_python_error(logFilePath,'curent_vectors.py')
+  
+
+    # import pylab
+    # ncols = state['ncols']
+    # nrows = state['nrows']
+    # x, y = meshgrid(arange(0, ncols), arange(0, nrows))
+    # u = iNetN*5
+    # v = iNetE*5
+    # pylab.close('all')
+    # pylab.figure()
+    # # Q = pylab.quiver( v, u)
+    # Q=pylab.quiver(x,y, v, u, angles='xy', scale_units='xy', scale=10)
+    # pylab.show()
+    # # time.sleep(5)
+    # pylab.close('all')
+    # # pylab.close('all')
+    # # pylab.ion()
+    # # pylab.figure(figsize=[8, 8])
+    # # pylab.quiver(x, y, u, v, angles='xy', scale_units='xy', scale=10)
+    # # # ax = pylab.axes()
+    # # # ax.set_aspect(1.)
+    
+    # # pylab.figure()
+    # # Q = pylab.quiver( u, v)
+    # # pylab.title('Minimal arguments, no kwargs')
+    # # pylab.show()
+    
+# # # qk = quiverkey(Q, 0.5, 0.92, 2, r'$2 \frac{m}{s}$', labelpos='W',
+               # # # fontproperties={'weight': 'bold'})
+# # # l,r,b,t = axis()
+# # # dx, dy = r-l, t-b
+# # # axis([l-0.05*dx, r+0.05*dx, b-0.05*dy, t+0.05*dy])
+
+
+    
+    # # time.sleep(3)
+    
+# # from pylab import *
+# # from numpy import ma
+
+# # X,Y = meshgrid( arange(0,2*pi,.2),arange(0,2*pi,.2) )
+# # U = cos(X)
+# # V = sin(Y)
+
+# #1
+# # figure()
+# # Q = quiver( U, V)
+
+# # # qk = quiverkey(Q, 0.5, 0.92, 2, r'$2 \frac{m}{s}$', labelpos='W',
+               # # # fontproperties={'weight': 'bold'})
+# # # l,r,b,t = axis()
+# # # dx, dy = r-l, t-b
+# # # axis([l-0.05*dx, r+0.05*dx, b-0.05*dy, t+0.05*dy])
+
+# # title('Minimal arguments, no kwargs')
+# # show()

@@ -5,22 +5,19 @@ from string import split
 from current_vectors import *
 
 logFilePath = None
+arrowOptions = {} 
 
 try:
-    # settings are for this script, as opposed to options which are for vector script.
-    settings = {}
-    arrowOptions = {} 
-    
     ####### USER SETTINGS ##############################
     if len(sys.argv) < 2: #Manual inputs
         arrowOptions['configFile'] = 'C:\\Program Files\\Circuitscape\\examples\\output\\eight_neighbor_example.ini'
         arrowOptions['voltMapFile'] = 'C:\\Program Files\\Circuitscape\\examples\\output\\eight_neighbor_example_voltmap_1_2.asc'       
-        arrowOptions['outDir'] = 'c:\\temp2'
+        arrowOptions['outDir'] = 'c:\\temp\\out'
         arrowOptions['writeTotalCurrent'] = True # Write total current leaving each pixel
         arrowOptions['writeResultant'] = True # Write vector magnitudes (will be less than total current)
         arrowOptions['writeAllDirections'] = True # Write current leaving pixels from N, NE, E, etc..
+        arrowOptions['writeArcVectors'] = True # Create an ESRI shapefile with angle and magnitude information
         arrowOptions['deleteTempFiles'] = True # Delete everything except standard current map (saved for debug)
-        arrowOptions['writeArcVectors'] = True    
     ####################################################
         
     else:
@@ -33,8 +30,6 @@ try:
         arrowOptions['writeArcVectors']  = sys.argv[7]
         arrowOptions['deleteTempFiles']  = sys.argv[8]        
     
-    startTime=time.clock()
-
     # Map vectors
     map_current_vectors(arrowOptions) 
 
