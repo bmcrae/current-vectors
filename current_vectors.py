@@ -1,5 +1,5 @@
 #add option to do flow in OR flow out
-
+#del matrices as soon as unneeded
 
 import sys, time, string, os, math
 import ConfigParser
@@ -20,6 +20,7 @@ global gdal_available
 gdal_available = False
 print_timings = False
 
+version = '2013_0408'
 
 def print_timing(func):
     def wrapper(*arg):
@@ -232,7 +233,6 @@ def read_header(filename):
 
     f.close()
 
-    # print 'header',ncols, nrows, xllcorner, yllcorner, cellsize, nodata 
     return ncols, nrows, xllcorner, yllcorner, cellsize, nodata 
 
 @print_timing        
@@ -276,7 +276,6 @@ def writer(file, data, state, compress, projectionFile):
     if outputExtension == '.npy': #read numpy array, so write one.
         numpy.save(file, data)
         return
-        
     if gdal_available == True:
         format = "MEM"
         driver = gdal.GetDriverByName( format )      
@@ -297,7 +296,6 @@ def writer(file, data, state, compress, projectionFile):
         dst_ds_new = driver.CreateCopy(file, dst_ds) #STILL GETTING LEADING SPACES.
         dst_ds = None
         
-        
     else:
         f = False
         if compress == True:
@@ -305,7 +303,6 @@ def writer(file, data, state, compress, projectionFile):
             f = gzip.open(file, 'w')
         else:
             f = open(file, 'w')
-
         f.write('ncols         ' + str(state['ncols']) + '\n')
         f.write('nrows         ' + str(state['nrows']) + '\n')
         f.write('xllcorner     ' + str(state['xllcorner']) + '\n')
@@ -320,7 +317,7 @@ def writer(file, data, state, compress, projectionFile):
             f.write(format % tuple(row) + '\n')
 
         f.close()
-
+    
 
 def delete_col(A, delcol):
     """Deletes columns from a matrix
@@ -565,7 +562,8 @@ def exit_with_python_error(logFilePath,filename):
     msg = ("Python error on **" + line + "** of " + filename + ":")
     lprint(logFilePath,msg)
     lprint(logFilePath,err)
-    close_log_file(logFilePath)
+    if logFilePath is not None:
+        close_log_file(logFilePath)
     raw_input('Press any key to continue')
     exit(1)
 
@@ -592,107 +590,125 @@ def elapsed_time(logFilePath, start_time):
 
     
 @print_timing        
-def map_current_vectors(configFile, voltMapFile, arrowOptions, resistInput, projectionFile, outputDir, logFilePath):
-#fixme: only works for advanced mode.  could iterate thru all 'basemap_voltmap_x_y.asc' for pairwise, basemap_voltmap_x.asc' for all to one, etc.
-
-# better soln: input is voltage map AND ini file? 
-  # -if voltmap is supplied, just run on that.
-  # -if only .ini. run through all potential voltmaps (DO LATER)
-# if not ascii, use arc to convert
+def map_current_vectors(arrowOptions):
     try:
+        
+        outDir = arrowOptions['outDir']
+        outBase, dirName = os.path.split(outDir)
+        scratchDir = os.path.join(outBase, 'arrowScratch')
+        logDir = os.path.join(outBase, 'arrowLog')
+        
+        print 'Creating directories'
+        if not os.path.exists(scratchDir):
+            os.mkdir(scratchDir)
+        if not os.path.exists(outDir):
+            os.makedirs(outDir)
+        if not os.path.exists(logDir):
+            os.mkdir(logDir)   
+        logFilePath = create_log_file(logDir, arrowOptions)    
+        lprint(logFilePath, 'Current Vectors Version = ' + version + '\n')    
+    
         state = {}
-        cs_options = readConfigFile(configFile)
-        csOutDir, baseOutputFN = os.path.split(cs_options['output_file'])
+        cs_options = readConfigFile(arrowOptions['configFile'])
+        csOutDir, baseOutputFN = os.path.split(arrowOptions['voltMapFile'])
         baseFile, ext = os.path.splitext(baseOutputFN)
-        baseOutputFile = os.path.join(outputDir,baseFile)
-        # voltMapFile = os.path.join(csOutDir, baseFile + '_voltmap.asc') #Now in args
-        state,voltMap = read_map(state, voltMapFile)
+        baseOutputFile = os.path.join(outDir,baseFile)
+        baseOutputFile = baseOutputFile.replace('voltmap','vector')
+        state,voltMap = read_map(state, arrowOptions['voltMapFile'])
         habMapFile = cs_options['habitat_file'] 
+        habMapFileBaseFN, ext = os.path.splitext(habMapFile)
+        
+        projectionFile = habMapFileBaseFN + '.prj'
+        if not os.path.exists(projectionFile):
+            projectionFile = None
+            
         state,g_map = read_hab_map(state, cs_options, habMapFile)
+        
         voltMap_ul, voltMap_dr = get_diag1_neighbors(voltMap)
         voltMap_ur, voltMap_dl = get_diag2_neighbors(voltMap)
         voltMap_l, voltMap_r = get_horiz_neighbors(voltMap)
         voltMap_u, voltMap_d = get_vert_neighbors(voltMap)
+       
         g_map_ul, g_map_dr = get_diag1_neighbors(g_map)
         g_map_ur, g_map_dl = get_diag2_neighbors(g_map)
         g_map_l, g_map_r = get_horiz_neighbors(g_map)
         g_map_u, g_map_d = get_vert_neighbors(g_map)
+ 
         g_N = get_g_connection(cs_options,g_map,g_map_u)
         g_S = get_g_connection(cs_options,g_map,g_map_d)
         g_E = get_g_connection(cs_options,g_map,g_map_r)
         g_W = get_g_connection(cs_options,g_map,g_map_l)
-        if cs_options['connect_four_neighbors_only'] == True:
-            g_NE = zeros((g_map.shape),dtype='int32')
-            g_SE = zeros((g_map.shape),dtype='int32')
-            g_SW = zeros((g_map.shape),dtype='int32')
-            g_NW = zeros((g_map.shape),dtype='int32')
-        else:
-            g_NE = (get_g_connection(cs_options,g_map,g_map_ur))/sqrt(2) #BHM 2/28/13
-            g_SE = (get_g_connection(cs_options,g_map,g_map_dr))/sqrt(2) #BHM 2/28/13    
-            g_SW = (get_g_connection(cs_options,g_map,g_map_dl))/sqrt(2) #BHM 2/28/13
-            g_NW = (get_g_connection(cs_options,g_map,g_map_ul))/sqrt(2) #BHM 2/28/13
+        
+        if cs_options['connect_four_neighbors_only'] == False:
+            g_NE = (get_g_connection(cs_options,g_map,g_map_ur))/sqrt(2) 
+            g_SE = (get_g_connection(cs_options,g_map,g_map_dr))/sqrt(2) 
+            g_SW = (get_g_connection(cs_options,g_map,g_map_dl))/sqrt(2) 
+            g_NW = (get_g_connection(cs_options,g_map,g_map_ul))/sqrt(2) 
         
         vdiff_N = get_vdiff(cs_options,voltMap,voltMap_u)
         vdiff_S = get_vdiff(cs_options,voltMap,voltMap_d)
         vdiff_E = get_vdiff(cs_options,voltMap,voltMap_r)
         vdiff_W = get_vdiff(cs_options,voltMap,voltMap_l)
-        vdiff_NE = get_vdiff(cs_options,voltMap,voltMap_ur)
-        vdiff_SE = get_vdiff(cs_options,voltMap,voltMap_dr)
-        vdiff_SW = get_vdiff(cs_options,voltMap,voltMap_dl)
-        vdiff_NW = get_vdiff(cs_options,voltMap,voltMap_ul)
+        if cs_options['connect_four_neighbors_only'] == False:
+            vdiff_NE = get_vdiff(cs_options,voltMap,voltMap_ur)
+            vdiff_SE = get_vdiff(cs_options,voltMap,voltMap_dr)
+            vdiff_SW = get_vdiff(cs_options,voltMap,voltMap_dl)
+            vdiff_NW = get_vdiff(cs_options,voltMap,voltMap_ul)
 
         iN = multiply(vdiff_N, g_N)
         iS = multiply(vdiff_S, g_S)
         iE = multiply(vdiff_E, g_E)
         iW = multiply(vdiff_W, g_W)
-        iNE = multiply(vdiff_NE, g_NE)
-        iSE = multiply(vdiff_SE, g_SE)
-        iSW = multiply(vdiff_SW, g_SW)
-        iNW = multiply(vdiff_NW, g_NW)
-        
-        
+        del vdiff_N, vdiff_S, vdiff_E, vdiff_W
+        if cs_options['connect_four_neighbors_only'] == False:
+            iNE = multiply(vdiff_NE, g_NE)
+            iSE = multiply(vdiff_SE, g_SE)
+            iSW = multiply(vdiff_SW, g_SW)
+            iNW = multiply(vdiff_NW, g_NW)
+            del vdiff_NE, vdiff_SE, vdiff_NW, vdiff_SW
         iNetN = iN - iS
         iNetE = iE - iW
-        iNetNE = iNE - iSW
-        iNetSE = iSE - iNW
-        iNetN = iNetN + (iNetNE / sqrt(2)) - (iNetSE / sqrt(2))
-        iNetE = iNetE + (iNetNE / sqrt(2)) + (iNetSE / sqrt(2))
-        
+        if cs_options['connect_four_neighbors_only'] == False:
+            iNetNE = iNE - iSW
+            iNetSE = iSE - iNW
+            iNetN = iNetN + (iNetNE / sqrt(2)) - (iNetSE / sqrt(2))
+            iNetE = iNetE + (iNetNE / sqrt(2)) + (iNetSE / sqrt(2))
+            del iNetNE
+            del iNetSE
         mag = where(voltMap == -9999, -9999, sqrt(square(iNetN) + square(iNetE)))     
         angle = where(voltMap == -9999, -9999, arctan2(iNetN,iNetE))
-        # del voltMap
-
-        dir, baseResistFN = os.path.split(resistInput) 
-        baseResistFile, ext = os.path.splitext(baseResistFN)
-        
+       
         if arrowOptions['writeTotalCurrent']:
-            iTot = iN + iS + iE + iW + iNE + iSE + iSW + iNW
+            if cs_options['connect_four_neighbors_only'] == False:
+                iTot = iN + iS + iE + iW + iNE + iSE + iSW + iNW
+            else:
+                iTot = iN + iS + iE + iW 
             iTot = where(voltMap == -9999, -9999, iTot)
             angle = where(iTot == 0, -9999, angle)
-            writer(baseOutputFile+'_'+baseResistFile+'_grossMagnitude.asc', iTot, state, False, projectionFile)
+            writer(baseOutputFile+'_grossMagnitude.asc', iTot, state, False, projectionFile)
+        del voltMap        
         
-        writer(baseOutputFile+'_'+baseResistFile+'_angle.asc', angle, state, False, projectionFile)
+        writer(baseOutputFile+'_angle.asc', angle, state, False, projectionFile)
         
         if arrowOptions['writeResultant']:
-            writer(baseOutputFile+'_'+baseResistFile+'_magnitude.asc', mag, state, False, projectionFile)
-
+            writer(baseOutputFile+'_magnitude.asc', mag, state, False, projectionFile)
 
         if arrowOptions['writeAllDirections']:
             writer(baseOutputFile+'_iN.asc', iN, state, False, projectionFile)
             writer(baseOutputFile+'_iS.asc', iS, state, False, projectionFile)
             writer(baseOutputFile+'_iE.asc', iE, state, False, projectionFile)
             writer(baseOutputFile+'_iW.asc', iW, state, False, projectionFile)
-            writer(baseOutputFile+'_iNE.asc', iNE, state, False, projectionFile)
-            writer(baseOutputFile+'_iSE.asc', iSE, state, False, projectionFile)
-            writer(baseOutputFile+'_iSW.asc', iSW, state, False, projectionFile)
-            writer(baseOutputFile+'_iNW.asc', iNW, state, False, projectionFile)
+            del iN, iS, iE, iW
+            if cs_options['connect_four_neighbors_only'] == False:
+                writer(baseOutputFile+'_iNE.asc', iNE, state, False, projectionFile)
+                writer(baseOutputFile+'_iSE.asc', iSE, state, False, projectionFile)
+                writer(baseOutputFile+'_iSW.asc', iSW, state, False, projectionFile)
+                writer(baseOutputFile+'_iNW.asc', iNW, state, False, projectionFile)
+                del iNE, iSE, iSW, iNW
             writer(baseOutputFile+'_iNetN.asc', iNetN, state, False, projectionFile)
             writer(baseOutputFile+'_iNetE.asc', iNetE, state, False, projectionFile)
 
         if arrowOptions['writeArcVectors']:
-            # raster to points mag (and grossmag if writetotalcurrent true_)
-            # convert angle to degrees
-            # add field
             try:
                 import arcpy
                 arcpy.CheckOutExtension("Spatial")
@@ -701,13 +717,11 @@ def map_current_vectors(configFile, voltMapFile, arrowOptions, resistInput, proj
                 
                 field = "VALUE"
                 # Execute RasterToPoint
-                if arrowOptions['writeTotalCurrent']:
-                    inRaster = baseOutputFile+'_grossMagnitude.asc'
-                else:
-                    inRaster = baseOutputFile+'_magnitude.asc'
-                dir, baseResistFN = os.path.split(resistInput)
-                baseResistFile, ext = os.path.splitext(baseResistFN)
-                outPoint = baseOutputFile + '_' + baseResistFile + '_' + '_arrows.shp'
+                # if arrowOptions['writeTotalCurrent']:
+                    # inRaster = baseOutputFile+'_grossMagnitude.asc'
+                # else:
+                inRaster = baseOutputFile+'_magnitude.asc'
+                outPoint = baseOutputFile + '_' + 'arrows.shp'
                 if arcpy.Exists(outPoint):
                     arcpy.Delete_management(outPoint)
                 startTime=time.clock()
@@ -716,30 +730,32 @@ def map_current_vectors(configFile, voltMapFile, arrowOptions, resistInput, proj
 
                 angleRaster = baseOutputFile+'_angle.asc'
                 if arrowOptions['writeAllDirections']:
-                    inRasterList = [[angleRaster, "radians"],[baseOutputFile+'_iN.asc',"i_North"],[baseOutputFile+'_iS.asc',"i_South"],[baseOutputFile+'_iE.asc',"i_East"],[baseOutputFile+'_iW.asc',"i_West"],[baseOutputFile+'_iNE.asc',"i_NE"],[baseOutputFile+'_iSE.asc',"i_SE"],[baseOutputFile+'_iSW.asc',"i_SW"],[baseOutputFile+'_iNW.asc',"i_NW"]]
+                    if cs_options['connect_four_neighbors_only'] == True:
+                        inRasterList = [[angleRaster, "radians"],[baseOutputFile+'_iN.asc',"i_North"],[baseOutputFile+'_iS.asc',"i_South"],[baseOutputFile+'_iE.asc',"i_East"],[baseOutputFile+'_iW.asc',"i_West"]]
+                    else:
+                        inRasterList = [[angleRaster, "radians"],[baseOutputFile+'_iN.asc',"i_North"],[baseOutputFile+'_iS.asc',"i_South"],[baseOutputFile+'_iE.asc',"i_East"],[baseOutputFile+'_iW.asc',"i_West"],[baseOutputFile+'_iNE.asc',"i_NE"],[baseOutputFile+'_iSE.asc',"i_SE"],[baseOutputFile+'_iSW.asc',"i_SW"],[baseOutputFile+'_iNW.asc',"i_NW"]]
                 else:
                     inRasterList = [[angleRaster, "radians"]]
+                grossMagRaster = baseOutputFile+'_grossMagnitude.asc'
+                if arrowOptions['writeTotalCurrent']:    
+                    inRasterList.append([grossMagRaster, "GrossMag"])
+
                 arcpy.sa.ExtractMultiValuesToPoints(outPoint, inRasterList, "NONE") #faster, allows multi rasters, name of field
                 arcpy.AddField_management(outPoint, "Degrees", "DOUBLE")
-                arcpy.AddField_management(outPoint, "DegreesGeo", "DOUBLE")
                 if arrowOptions['writeResultant']:
                     arcpy.AddField_management(outPoint, "Mag", "DOUBLE")
-                if arrowOptions['writeTotalCurrent']:
-                    arcpy.AddField_management(outPoint, "GrossMag", "DOUBLE")
                     
                 rows = arcpy.UpdateCursor(outPoint)
                 for row in rows:
                     radians = row.getValue("radians")
                     row.setValue("Degrees", radians*180/pi)
-                    row.setValue("DegreesGeo", radians*180/pi-90)
-                    if arrowOptions['writeTotalCurrent']:
-                        row.setValue("GrossMag", row.getValue("GRID_CODE"))
                     if arrowOptions['writeResultant']:
                         row.setValue("Mag", row.getValue("GRID_CODE"))
-                                                
-                        
                     rows.updateRow(row)
                 del row, rows                
+                lprint(logFilePath,'\nESRI shapefile with magnitudes and angles written.')  
+                lprint(logFilePath,'You can symbolize this using arrow marker symbols in ArcMap ')
+                lprint(logFilePath,'with an arithmetic rotation style and rotation of Degrees + 90.')
                 
             except arcpy.ExecuteError:        
                 msg=arcpy.GetMessages(2)

@@ -23,12 +23,12 @@ logFilePath = None
 try:
     arrowOptions = {}
     ####### USER SETTINGS ##############################
-    circuitscapeDir = "c:\\temp" # Directory where Circuitscape directory is placed
-    arrowOptions['writeTotalCurrent'] = False # Write total current leaving each pixel
+    arrowOptions['writeTotalCurrent'] = True # Write total current leaving each pixel
     arrowOptions['writeResultant'] = True # Write vector magnitudes (will be less than total current)
-    arrowOptions['writeAllDirections'] = False # Write current leaving pixels from N, NE, E, etc..
+    arrowOptions['writeAllDirections'] = True # Write current leaving pixels from N, NE, E, etc..
     arrowOptions['deleteTempFiles'] = True # Delete everything except standard current map (saved for debug)
-    arrowOptions['writeArcVectors'] = False
+    arrowOptions['writeArcVectors'] = True
+    circuitscapeDir = "c:\\temp" # Directory where Circuitscape directory is placed (not needed if circuitscape is installed)    
     raiseResistPower = 1
     
     if len(sys.argv) < 2: #Manual inputs
@@ -39,8 +39,13 @@ try:
         # rangeDir = 'c:\\arrows\\testranges' # All range maps in this directory, NoData = -9999
         scratchDir = 'c:\\dropbox\\working\\arrows\\scratch'
         outDir = 'c:\\temp2'
+        outBase, dirName = os.path.split(outDir)
+        scratchDir = os.path.join(outBase, 'Scratch')
+        logDir = os.path.join(outBase, 'Log')
         ####################################################
         fileList = os.listdir(rangeDir)
+        
+        # settings are for this script, as opposed to options which are for vector script.
         settings = {}
         settings['resistInput'] = resistInput  
         settings['rangeDir'] = rangeDir
@@ -70,7 +75,6 @@ try:
         os.mkdir(scratchDir)
     if not os.path.exists(outDir):
         os.makedirs(outDir)
-    logDir = os.path.join(scratchDir,'log')    
     if not os.path.exists(logDir):
         os.mkdir(logDir)
    
@@ -129,10 +133,6 @@ try:
         writer(contractGroundFile, contractGrounds, state, False, projectionFile)
         expandGrounds = where(rangeMap==2,0, contractGrounds)
         writer(expandGroundFile, expandGrounds, state, False, projectionFile)
-        
-
-        # numExpandCells = len(where(rangeMap==2))
-        # print numExpandCells
         del contractGrounds, expandGrounds
 
         cs_options=set_default_cs_options()
@@ -190,13 +190,13 @@ try:
             csOutDir, baseOutputFN = os.path.split(cs_options['output_file'])
             baseFile, ext = os.path.splitext(baseOutputFN)
             expandVoltMapFile = os.path.join(csOutDir, baseFile + '_voltmap.asc')        
-            map_current_vectors(expandConfigFile, expandVoltMapFile, arrowOptions, resistInput, projectionFile, outDir, logFilePath) 
+            map_current_vectors(expandConfigFile, expandVoltMapFile, arrowOptions, outDir, logFilePath) 
         if failFlag2 == False and solverFailFlag2 == False:
             cs_options = readConfigFile(contractConfigFile)
             csOutDir, baseOutputFN = os.path.split(cs_options['output_file'])
             baseFile, ext = os.path.splitext(baseOutputFN)
             contractVoltMapFile = os.path.join(csOutDir, baseFile + '_voltmap.asc')        
-            map_current_vectors(contractConfigFile, contractVoltMapFile, arrowOptions, resistInput, projectionFile, outDir, logFilePath)
+            map_current_vectors(contractConfigFile, contractVoltMapFile, arrowOptions, outDir, logFilePath)
         lprint (logFilePath, '\n-------------------------------------------------------')    
         lprint (logFilePath, 'Done with all operations for ' + fileName +'\n')
         startTime = elapsed_time(logFilePath, startTime)
@@ -214,7 +214,6 @@ try:
                     baseFN, ext = os.path.splitext(fileName)
                     if ext == '.prj' and 'curmap' not in baseFN: # Saving standard current maps (when written) for debug
                         os.remove(os.path.join(scratchDir,fileName))
-                # shutil.rmtree(scratchDir)
             except:
                 pass
     lprint(logFilePath,'\nDone with all operations for directory ' + rangeDir)               
