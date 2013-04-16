@@ -1,3 +1,7 @@
+# PROBLEM: Arrows do not display neatly for fine-scaled data.  would need to seriously subsample
+# build into pinchpoint mapper? NOT NOW- PROBLEM ABOVE IS BARRIER
+
+# tried MGET- does lines, not easily tweaked
 #add option to do flow in OR flow out
 #del matrices as soon as unneeded
 
@@ -157,6 +161,7 @@ def get_diag2_neighbors(map):
     map_dl[0:m-1, 1:n  ] = map[1:m  , 0:n-1]
     return map_ur, map_dl
     
+    
 @print_timing        
 def read_map(state,filename):
     (ncols, nrows, xllcorner, yllcorner, cellsize, nodata) = read_header(filename)
@@ -171,8 +176,8 @@ def read_map(state,filename):
         state['nodata'] = nodata
     
     map = reader(filename, 'float64')
-    
     return state, map
+    
     
 @print_timing        
 def read_hab_map(state, cs_options, filename):
@@ -199,6 +204,7 @@ def read_hab_map(state, cs_options, filename):
         g_map = where(cell_map == -9999,0,cell_map)    
     g_map = where(g_map < 0,0,g_map)    
     return state, g_map
+    
     
 def read_header(filename):
     if os.path.isfile(filename)==False:

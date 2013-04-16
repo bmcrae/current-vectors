@@ -10,8 +10,8 @@ arrowOptions = {}
 try:
     ####### USER SETTINGS ##############################
     if len(sys.argv) < 2: #Manual inputs
-        arrowOptions['configFile'] = 'C:\\Program Files\\Circuitscape\\examples\\output\\eight_neighbor_example.ini'
-        arrowOptions['voltMapFile'] = 'C:\\Program Files\\Circuitscape\\examples\\output\\eight_neighbor_example_voltmap_1_2.asc'       
+        arrowOptions['configFile'] = 'C:\\temp\\pinchpoint_config3.ini'
+        arrowOptions['voltMapFile'] = 'C:\\temp\\rastert_li_med_1.asc'       
         arrowOptions['outDir'] = 'c:\\temp\\out'
         arrowOptions['writeTotalCurrent'] = True # Write total current leaving each pixel
         arrowOptions['writeResultant'] = True # Write vector magnitudes (will be less than total current)
